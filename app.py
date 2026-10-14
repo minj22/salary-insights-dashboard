@@ -139,7 +139,11 @@ elif page=='Q2 · Work Arrangement':
   c1,c2=st.columns(2)
   with c1:st.metric('Pooled standard deviation',money(Q2['student']['pooled_sd']))
   with c2:st.metric('Welch standard error',money(Q2['welch']['se']))
-  insight('<b>Interpretation.</b> Manual and SciPy implementations agree. Both tests reject equal mean salaries at α = 0.05. Welch is the primary analysis because it does not assume equal population variances.')
+  lev=Q2['assumptions']
+  insight(f'<b>Interpretation.</b> Manual and SciPy implementations agree. Both tests reject equal mean salaries at α = 0.05. '
+           f'Levene’s test indicates unequal variances (statistic = {lev["levene_statistic"]:.4f}, '
+           f'p = {lev["levene_p"]:.2e}); the sample variance ratio is {lev["variance_ratio"]:.4f}. '
+           'Welch is preferred because it does not assume equal population variances.')
  with tabs[2]:
   st.markdown('#### Figure 1 · Group bootstrap mean distributions')
   c1,c2=st.columns(2)
@@ -186,7 +190,24 @@ elif page=='Q3 · Education & ANOVA':
  with tabs[1]:
   a=Q3['anova'];metricrow([('F-statistic',f"{a['f']:.4f}",None),('p-value',pval(a['p']),None),('Degrees of freedom',f"{a['df_between']}, {a['df_within']}",None)])
   st.markdown('#### Group summary');stats_table(Q3['trimmed'])
-  insight('One-way ANOVA rejects the null hypothesis that all three population mean salaries are equal (p < 0.05). ANOVA alone does not establish which specific pairs differ.')
+  lev=Q3['assumptions']
+  insight(
+    f'<b>ANOVA interpretation.</b> The conventional one-way ANOVA rejects equal population mean salaries '
+    f'(F = {a["f"]:.4f}, p = {a["p"]:.2e}). ANOVA alone cannot identify which pairs differ. '
+    f'However, Levene’s test indicates unequal group variances '
+    f'(statistic = {lev["levene_statistic"]:.4f}, p = {lev["levene_p"]:.2e}). '
+    'Given the unequal variances and group sizes, interpret the conventional ANOVA result with caution.'
+   )
+  st.markdown('#### Sensitivity Analysis: Original vs Trimmed')
+  s=Q3['sensitivity']
+  sensitivity_df=pd.DataFrame([
+    {'Dataset':'Original','F-statistic':s['original_f'],'p-value':f"{s['original_p']:.2e}",'Significant at α = 0.05':'Yes' if s['original_p']<.05 else 'No'},
+    {'Dataset':'Trimmed','F-statistic':s['trimmed_f'],'p-value':f"{s['trimmed_p']:.2e}",'Significant at α = 0.05':'Yes' if s['trimmed_p']<.05 else 'No'}
+   ])
+  st.dataframe(sensitivity_df,hide_index=True,use_container_width=True)
+  insight('Both the original and trimmed data reject equal group means at the 5% level. '
+           'Removing the highest 1% of salaries within each education group increased the F-statistic, '
+           'without changing the statistical significance. Unequal group variances remain a limitation.')
  with tabs[2]:
   st.markdown('#### Figure 1 · Bootstrap distributions of group mean salaries')
   c=st.columns(3)
@@ -221,13 +242,13 @@ else:
 
 ### Statistical cautions
 - Observational associations are **not causal**; occupation, geography, experience, and other confounders are not controlled here.
-- Group-specific outlier trimming changes the target population and may affect estimates and p-values. Original-data sensitivity results are shown in Q2.
-- ANOVA assumptions and group variance differences should be considered; pairwise bootstrap intervals are not multiplicity-adjusted.
+- Group-specific outlier trimming changes the analyzed sample and may affect estimates and p-values. Original-data sensitivity results are shown in Q2 and Q3.
+- Levene’s test indicates unequal group variances in Q2 and Q3. Conventional one-way ANOVA results require caution, especially with unequal sample sizes. Pairwise bootstrap intervals are not multiplicity-adjusted.
 - A bootstrap p-value of **0.0001** means no more extreme statistic was observed in 10,000 draws under the null, not that the exact theoretical p-value equals 0.0001.
 - Salary and survey responses may be subject to self-selection, reporting error, and category limitations.
 
 ### Privacy and reproducibility
-This deployed application contains **only aggregated statistics and binned bootstrap summaries**. It does not include the 67 MB respondent-level CSV. The Q1 salary-by-age scatter from the notebook is replaced by an age-aggregated line plot to avoid releasing individual records. All inferential statistics were recomputed from the same dataset, filters, seeds, and 10,000-replication methods used in the uploaded notebook.
+This deployed application contains **only aggregated statistics and binned bootstrap summaries**. It does not include the 67 MB respondent-level CSV. The Q1 salary-by-age scatter from the notebook is replaced by an age-aggregated line plot to avoid releasing individual records. The bundled summaries reflect the notebook analyses and the reported 10,000-replication bootstrap methods; the original respondent-level data are not required to view this dashboard.
 ''')
 
 st.divider()
